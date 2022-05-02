@@ -1,18 +1,81 @@
 #encoding: utf-8
 
 import time
+
+from sqlalchemy import true
 from Client import SocketClient
 import json
 import numpy as np
+import tensorflow as tf
+import tensorflow.keras as keras
+import tensorflow.keras.layers as layers
+import tensorflow.keras.initializers as initializers
 
+import matplotlib.pyplot as plt
+
+
+def get_reward(bandit: float) -> tf.Tensor:
+        reward = tf.random.normal([1], mean=bandit, stddev=1, dtype=tf.dtypes.float32)
+
+        return reward
+
+def construct_q_network(state_dim: int, action_dim: int) -> keras.Model:
+    inputs = layers.Input(shape=(state_dim,))  # input dimension
+    hidden1 = layers.Dense(
+        50, activation="relu", kernel_initializer=initializers.he_normal()
+    )(inputs)
+    hidden2 = layers.Dense(
+        50, activation="relu", kernel_initializer=initializers.he_normal()
+    )(hidden1)
+    q_values = layers.Dense(
+        action_dim, kernel_initializer=initializers.Zeros(), activation="linear"
+    )(hidden2)
+
+    deep_q_network = keras.Model(inputs=inputs, outputs=[q_values])
+
+    return deep_q_network
+
+def mean_squared_error_loss(q_value: tf.Tensor, reward: tf.Tensor) -> tf.Tensor:
+    loss = 0.5 * (q_value - reward) ** 2
+
+    return loss
+
+plt.ion()
+fig, ax = plt.subplots()
+plt.xlabel("Games")
+plt.ylabel("Sizes")
+plt.show()
+
+def plot(sizes: np.array) -> None:
+    width = 0.4
+    x = np.arange(len(sizes))
+    
+    ax.bar(x, sizes, width, label="Sizes", color="b")
+
+    fig.canvas.draw()
+    fig.canvas.flush_events()
+
+    return
 
 # NaiveHunter stratégia implementációja távoli eléréshez.
-class RemoteNaiveHunterStrategy:
+class MyDeepQStrategy:
+
+    
 
     def __init__(self):
         # Dinamikus viselkedéshez szükséges változók definíciója
         self.oldpos = None
         self.oldcounter = 0
+
+        self.q_network = construct_q_network(81, 9)
+        self.opt = tf.keras.optimizers.Adam(learning_rate=0.01)
+        self.last_size = 5
+        self.exploration_rate = 0.1
+        self.sizeGainCtr = 0
+        self.sizes = []
+        self.running = True
+        
+    
 
     # Egyéb függvények...
     def getRandomAction(self):
@@ -63,14 +126,15 @@ class RemoteNaiveHunterStrategy:
             print("Leaderboard:")
             for score in fulljson["payload"]["players"]:
                 print(score["name"],score["active"], score["maxSize"])
+                if score["name"] == "RemotePlayer" and score["active"] == True:
+                    self.sizes.append(score["maxSize"])
 
-            time.sleep(50)
+            
             sendData(json.dumps({"command": "GameControl", "name": "master",
                                  "payload": {"type": "reset", "data": {"mapPath": None, "updateMapPath": None}}}))
 
         if fulljson["type"] == "readyToStart":
             print("Game is ready, starting in 5")
-            time.sleep(5)
             sendData(json.dumps({"command": "GameControl", "name": "master",
                                  "payload": {"type": "start", "data": None}}))
 
@@ -113,30 +177,67 @@ class RemoteNaiveHunterStrategy:
                         else:
                             vals.append(0)
 
-                values = np.array(vals)
+                values = tf.constant([vals])
+                
+                with tf.GradientTape() as tape:
+                    q_values = self.q_network(values)
 
-                if np.max(values) <= 0 or self.oldcounter >= 3:
-                    actstring = self.getRandomAction()
-                    self.oldcounter = 0
-                else:
-                    idx = np.argmax(values)
-                    actstring = ""
-                    for i in range(2):
-                        if jsonData["vision"][idx]["relative_coord"][i] == 0:
-                            actstring += "0"
-                        elif jsonData["vision"][idx]["relative_coord"][i] > 0:
-                            actstring += "+"
-                        elif jsonData["vision"][idx]["relative_coord"][i] < 0:
-                            actstring += "-"
+                    epsilon = np.random.rand()
+                    if epsilon <= self.exploration_rate:
+                        action = np.random.choice(9)
+                    else:
+                        action = np.argmax(q_values)
 
-                # Akció JSON előállítása és elküldése
-                sendData(json.dumps({"command": "SetAction", "name": "RemotePlayer", "payload": actstring}))
+                    self.size = jsonData["size"]
+                    sizeDiff = self.size - self.last_size
+                    if sizeDiff > 0:
+                        self.sizeGainCtr = 0
+                    else:
+                        self.sizeGainCtr = self.sizeGainCtr + 1
+                    self.last_size = self.size
+                    reward = [sizeDiff-(self.sizeGainCtr/10)]
+
+                    q_value = q_values[0, action]
+
+                    loss_value = mean_squared_error_loss(q_value, reward)
+                    grads = tape.gradient(loss_value[0], self.q_network.trainable_variables)
+
+                    self.opt.apply_gradients(zip(grads, self.q_network.trainable_variables))
+
+                    if action == 1:
+                        actstring = "++"
+                    elif action == 2:
+                        actstring = "+0"
+                    elif action == 3:
+                        actstring = "+-"
+                    elif action == 4:
+                        actstring = "0+"
+                    elif action == 5:
+                        actstring = "00"
+                    elif action == 6:
+                        actstring = "0-"
+                    elif action == 7:
+                        actstring = "-+"
+                    elif action == 8:
+                        actstring = "-0"
+                    elif action == 0:
+                        actstring = "--"
+                    else:
+                        actstring = "--"
+
+                
+
+                    # Akció JSON előállítása és elküldése
+                    sendData(json.dumps({"command": "SetAction", "name": "RemotePlayer", "payload": actstring}))
+
+
+                
 
 
 
 if __name__=="__main__":
     # Példányosított stratégia objektum
-    hunter = RemoteNaiveHunterStrategy()
+    hunter = MyDeepQStrategy()
 
     # Socket kliens, melynek a szerver címét kell megadni (IP, port), illetve a callback függvényt, melynek szignatúrája a fenti
     # callback(fulljson, sendData)
@@ -150,3 +251,6 @@ if __name__=="__main__":
     client.sendData(json.dumps({"command": "SetName", "name": "RemotePlayer", "payload": None}))
 
     # Nincs blokkoló hívás, a főszál várakozó állapotba kerül, itt végrehajthatók egyéb műveletek a kliens automata működésétől függetlenül.
+    while hunter.running == True:
+        plot(hunter.sizes)
+        time.sleep(1.5)

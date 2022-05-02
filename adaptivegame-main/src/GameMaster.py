@@ -1,11 +1,31 @@
 import json
 
+from numpy import average
+
 from Config import *
 from Engine import AdaptIOEngine
 from Server import MultiSocketServer
 from threading import Timer, Thread
 from Gui_Beta import *
 
+import matplotlib.pyplot as plt
+
+plt.ion()
+fig, ax = plt.subplots()
+plt.xlabel("Games")
+plt.ylabel("Sizes")
+plt.show()
+
+def plot(sizes: np.array) -> None:
+    width = 0.4
+    x = np.arange(len(sizes))
+    
+    ax.bar(x, sizes, width, label="Sizes", color="b")
+
+    fig.canvas.draw()
+    fig.canvas.flush_events()
+
+    return
 
 class STATE:
     PRERUN = 0
@@ -40,6 +60,9 @@ class GameMaster:
         self.gameStartTimer = None
         self.autoStartTimer = None
         self.canStart = False
+        self.sizes = []
+        self.avgSizes = []
+        self.gameCntr = 0
 
     def _startGame(self):
         self.gameState = STATE.RUNNING
@@ -62,16 +85,65 @@ class GameMaster:
             if not self.engine.tick():
                 self.gameState = STATE.WAIT_COMMAND
                 self.serv.sendData(json.dumps({"type":"leaderBoard","payload":self.engine.getLeaderboard()}),"all")
+                for score in self.engine.getLeaderboard()["players"]:
+                    if score["name"] == "RemotePlayer":
+                        if score["active"] == True:
+                            self.sizes.append(score["maxSize"])
+                        else:
+                            self.sizes.append(0)
+                        self.gameCntr += 1
+                        if len(self.sizes) > 50:
+                            self.avgSizes.append(average(self.sizes))
+                            self.sizes.clear()
+                        
+                        for player in self.engine.players:
+                            if player.name == "RemotePlayer":
+                                if self.gameCntr < 50:
+                                    player.strategy.exploration_rate = 1
+                                elif self.gameCntr < 1000:
+                                    player.strategy.exploration_rate = 0.1
+                                else:
+                                    player.strategy.exploration_rate = 0
+                        
+                        print(average(self.sizes))
             else:
                 if DISPLAY_ON:
                     self.disp.updateDisplayInfo(*self.engine.generateDisplayData())
 
         elif self.gameState == STATE.WAIT_COMMAND:
-            if self.exitTimer is None:
-                self.exitTimer = Timer(30, self.close)
-                self.exitTimer.start()
+            #if self.exitTimer is None:
+            #    self.exitTimer = Timer(30, self.close)
+            #    self.exitTimer.start()
+
+            
+
+            self.canStart = False
+            newmap = np.random.randint(3)
+            if newmap == 0:
+                mappath = "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projektfeladat/adaptivegame-main/src/maps/02_base.txt"
+            elif newmap == 1:
+                mappath = "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projektfeladat/adaptivegame-main/src/maps/03_blockade.txt"
+            else:
+                mappath = "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projektfeladat/adaptivegame-main/src/maps/04_mirror.txt"
+            #self.engine.reset_state(mappath, mappath)
+            self.engine.reset_state(None, None)
+            self.serv.sendData(json.dumps({"type": "readyToStart", "payload": None}), "all")
+            self.gameState = STATE.WAIT_START
 
         elif self.gameState == STATE.WAIT_START:
+            if self.gameCntr % 50 == 0:
+                plot(self.avgSizes)
+
+            print("Game nr.: ")
+            print(self.gameCntr)
+
+            action = json.dumps({"command": "GameControl", "name": "master",
+                                 "payload": {"type": "start", "data": None}})
+
+            self.canStart = True
+            self.serv.sendData(json.dumps({"type": "started", "payload": {"tickLength":self.tickLength}}), "all")
+            self.engine.sendObservations()
+
             if self.exitTimer is not None:
                 self.exitTimer.cancel()
                 self.exitTimer = None
@@ -111,31 +183,37 @@ class GameMaster:
         print("Close finished")
 
     def run(self):
-        self.serv.start()
+        #self.serv.start()
         self.timer.start()
         self.running = True
+
+
         try:
             while self.pollGameCommands:
+                
                 if DISPLAY_ON:
                     self.disp.launchDisplay(self.close)
+                else:
+                    time.sleep(1)
 
-                action = self.serv.getGameMasterFIFO()
-                if action is None:
-                    continue
-                if not ("type" in action.keys() and "data" in action.keys()):
-                    continue
-                if action["type"] == "interrupt":
-                    self.close()
-                if action["type"] == "start":
-                    self.canStart = True
-                    self.serv.sendData(json.dumps({"type": "started", "payload": {"tickLength":self.tickLength}}), "all")
-                    self.engine.sendObservations()
-                if action["type"] == "reset":
-                    if self.gameState != STATE.RUNNING:
-                        self.canStart = False
-                        self.engine.reset_state(action["data"]["mapPath"], action["data"]["updateMapPath"])
-                        self.serv.sendData(json.dumps({"type": "readyToStart", "payload": None}), "all")
-                        self.gameState = STATE.WAIT_START
+
+               # action = self.serv.getGameMasterFIFO()
+                #if action is None:
+                #    continue
+                #if not ("type" in action.keys() and "data" in action.keys()):
+                #    continue
+                #if action["type"] == "interrupt":
+                #    self.close()
+                #if action["type"] == "start":
+                #    self.canStart = True
+                #    self.serv.sendData(json.dumps({"type": "started", "payload": {"tickLength":self.tickLength}}), "all")
+                #    self.engine.sendObservations()
+                #if action["type"] == "reset":
+                #    if self.gameState != STATE.RUNNING:
+                #        self.canStart = False
+                #        self.engine.reset_state(action["data"]["mapPath"], action["data"]["updateMapPath"])
+                #        self.serv.sendData(json.dumps({"type": "readyToStart", "payload": None}), "all")
+                #        self.gameState = STATE.WAIT_START
         except KeyboardInterrupt:
             print("Interrupted, stopping")
             self.close()

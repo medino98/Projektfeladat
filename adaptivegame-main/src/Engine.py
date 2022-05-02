@@ -70,6 +70,8 @@ class AdaptIOEngine:
             print("Log directory can not be created!")
 
     def writeLog(self, ticknum, actions, field, players):
+        if self.log == False:
+            return
         players_info = []
         for player in players:
             players_info.append({"name":player.name,"pos":player.pos.tolist(),"size":player.size})
@@ -91,6 +93,7 @@ class AdaptIOEngine:
         return coordlist
 
     def prepareField(self, mapPath):
+        print(mapPath)
         field = np.transpose(np.loadtxt(mapPath))
         size = field.shape[0]
         return field, size

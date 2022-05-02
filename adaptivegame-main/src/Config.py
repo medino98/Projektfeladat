@@ -2,18 +2,18 @@
 GAMEMASTER_NAME = "master"
 IP = "localhost"
 PORT = 42069
-DEFAULT_TICK_LENGTH_S = 0.2
+DEFAULT_TICK_LENGTH_S = 0
 DISPLAY_ON = True
 WAIT_FOR_JOIN = 20
-LOG = True
+LOG = False
 LOG_PATH = './log'
 
 # Engine
-MAPPATH          = "./maps/04_mirror.txt"
-FIELDUPDATE_PATH = "./fieldupdate/03_midlane.txt"
+MAPPATH          = "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projektfeladat/adaptivegame-main/src/maps/04_mirror.txt"
+FIELDUPDATE_PATH = "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projektfeladat/adaptivegame-main/src/fieldupdate/03_midlane.txt"
 STARTING_SIZE    = 5
 MIN_RATIO        = 1.1
-STRATEGY_DICT    = {"RemotePlayer": "remoteplayer", "Teszt2": "dummy", "Teszt3": "naivehunterbot", "Teszt4": "naivehunterbot"}
+STRATEGY_DICT    = {"RemotePlayer": "mydeepq", "Teszt2": "dummy", "Teszt3": "naivehunterbot", "Teszt4": "naivehunterbot"}
 VISION_RANGE     = 5
 UPDATE_MODE      = "statistical" #static
 DIFF_FROM_SIDE   = 1
