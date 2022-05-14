@@ -13,14 +13,14 @@ MAPPATH          = "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projekt
 FIELDUPDATE_PATH = "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projektfeladat/adaptivegame-main/src/fieldupdate/03_midlane.txt"
 STARTING_SIZE    = 5
 MIN_RATIO        = 1.1
-STRATEGY_DICT    = {"RemotePlayer": "mydeepq", "Teszt2": "dummy", "Teszt3": "naivehunterbot", "Teszt4": "naivehunterbot"}
+STRATEGY_DICT    = {"RemotePlayer": "mydeepq", "Teszt2": "dummy", "Teszt3": "randombot", "Teszt4": "randombot"}
 VISION_RANGE     = 5
 UPDATE_MODE      = "statistical" #static
 DIFF_FROM_SIDE   = 1
 FOODGEN_COOLDOWN = 10
 FOODGEN_OFFSET   = 10
 FOODGEN_SCALER   = 0.05
-MAXTICKS         = 300
+MAXTICKS         = 200
 SOLO_ENABLED     = True
 
 #GUI

@@ -1,6 +1,6 @@
 import json
 
-from numpy import average
+from numpy import argmax, average
 
 from Config import *
 from Engine import AdaptIOEngine
@@ -85,27 +85,44 @@ class GameMaster:
             if not self.engine.tick():
                 self.gameState = STATE.WAIT_COMMAND
                 self.serv.sendData(json.dumps({"type":"leaderBoard","payload":self.engine.getLeaderboard()}),"all")
+                newSizes = []
+                newNames = []
                 for score in self.engine.getLeaderboard()["players"]:
-                    if score["name"] == "RemotePlayer":
+                    if score["name"].find("RemotePlayer") != -1:
                         if score["active"] == True:
-                            self.sizes.append(score["maxSize"])
+                            newSizes.append(score["maxSize"])
                         else:
-                            self.sizes.append(0)
-                        self.gameCntr += 1
-                        if len(self.sizes) > 50:
-                            self.avgSizes.append(average(self.sizes))
-                            self.sizes.clear()
-                        
+                            newSizes.append(0)
+                        newNames.append(score["name"])
                         for player in self.engine.players:
-                            if player.name == "RemotePlayer":
+                            if player.name.find("RemotePlayer") != -1:
+                                player.strategy.reward = 0
                                 if self.gameCntr < 50:
                                     player.strategy.exploration_rate = 1
                                 elif self.gameCntr < 1000:
                                     player.strategy.exploration_rate = 0.1
                                 else:
-                                    player.strategy.exploration_rate = 0
+                                    player.strategy.exploration_rate = 0.05
+                                player.strategy.prevActions = [0,0,0,0,0,0,0,0,0,0]
                         
-                        print(average(self.sizes))
+                        
+                        
+                ind = argmax(newSizes)
+                bestName = newNames[ind]
+
+                #for player in self.engine.players:
+                    #if self.gameCntr > 50:
+                    #    if player.name == bestName:
+                    #        for p in self.engine.players:
+                    #            p.strategy.q_network = player.strategy.q_network
+                    
+                    
+                self.sizes.append(newSizes[ind])
+                self.gameCntr += 1
+                if len(self.sizes) >= 100:
+                    self.avgSizes.append(average(self.sizes))
+                    self.sizes.clear()
+                print(average(self.sizes))
             else:
                 if DISPLAY_ON:
                     self.disp.updateDisplayInfo(*self.engine.generateDisplayData())
@@ -131,8 +148,12 @@ class GameMaster:
             self.gameState = STATE.WAIT_START
 
         elif self.gameState == STATE.WAIT_START:
-            if self.gameCntr % 50 == 0:
+            if self.gameCntr % 100 == 0:
                 plot(self.avgSizes)
+            if self.gameCntr % 500 == 0:
+                for player in self.engine.players:
+                    if player.name.find("RemotePlayer") != -1:
+                        player.strategy.save_q_network()
 
             print("Game nr.: ")
             print(self.gameCntr)

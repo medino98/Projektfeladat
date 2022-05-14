@@ -9,10 +9,10 @@ import tensorflow.keras.initializers as initializers
 def construct_q_network(state_dim: int, action_dim: int) -> keras.Model:
     inputs = layers.Input(shape=(state_dim,))  # input dimension
     hidden1 = layers.Dense(
-        30, activation="relu", kernel_initializer=initializers.he_normal()
+        24, activation="relu", kernel_initializer=initializers.he_normal()
     )(inputs)
     q_values = layers.Dense(
-        action_dim, kernel_initializer=initializers.Identity(), activation="tanh"
+        action_dim, kernel_initializer=initializers.Identity() , activation="linear",
     )(hidden1)
 
     deep_q_network = keras.Model(inputs=inputs, outputs=[q_values])
@@ -210,21 +210,28 @@ class MyDeepQStrategy:
         self.oldpos = None
         self.oldcounter = 0
 
-        self.q_network = construct_q_network(12, 9)
-        self.opt = tf.keras.optimizers.Adam(learning_rate=0.01)
+        self.q_network = construct_q_network(12, 8)
+        self.opt = tf.keras.optimizers.Adam(learning_rate=0.1)
         self.last_size = 5
         self.exploration_rate = 0
         self.sizeGainCtr = 0
         self.sizes = []
         self.running = True
         self.prev_state = None
-        self.gamma = 0
+        self.gamma = 1
         self.reward = [0]
-        self.prev_action = 0
+        self.prev_actions = [0,0,0,0,0,0,0,0,0,0]
         self.prev_q_value = 0
         self.starting = True
         self.q_network.trainable = True
         self.closest = [0,0,0,0,0,0,0,0]
+        self.prevPos = []
+        self.prev_action = 0
+        self.reward = 0
+
+        
+    def save_q_network(self):
+        tf.keras.models.save_model(self.q_network, "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projektfeladat/adaptivegame-main/src/my_model")
 
     def getRandomAction(self):
         actdict = {0: "0", 1: "+", 2: "-"}
@@ -324,15 +331,15 @@ class MyDeepQStrategy:
                         ymm += field["value"] / (abs(field["relative_coord"][1]))
                 elif field["value"] == 9:
                     self.checkClosest(field, -1)
-                    #if field["relative_coord"][0] > 0:
-                    #    xpp += -0.3 / (abs(field["relative_coord"][0])**2)
-                    #elif field["relative_coord"][0] < 0:
-                    #    xmm += -0.3 / (abs(field["relative_coord"][0])**2)
+                    if field["relative_coord"][0] > 0:
+                        xpp += -0.3 / (abs(field["relative_coord"][0])**2)
+                    elif field["relative_coord"][0] < 0:
+                        xmm += -0.3 / (abs(field["relative_coord"][0])**2)
                     
-                    #if field["relative_coord"][1] > 0:
-                    #    ypp += -0.3 / (abs(field["relative_coord"][1])**2)
-                    #elif field["relative_coord"][1] < 0:
-                    #    ymm += -0.3 / (abs(field["relative_coord"][1])**2)
+                    if field["relative_coord"][1] > 0:
+                        ypp += -0.3 / (abs(field["relative_coord"][1])**2)
+                    elif field["relative_coord"][1] < 0:
+                        ymm += -0.3 / (abs(field["relative_coord"][1])**2)
                 else:
                     self.checkClosest(field, 0)
                     #if field["relative_coord"][0] > 0:
@@ -357,11 +364,14 @@ class MyDeepQStrategy:
         #ypp = getVisionSum(visionVals2D, 3, 6, 0, 3)/closeby_multiplier + visionVals2D[4][6]
         #ymm = getVisionSum(visionVals2D, 3, 6, 0, 3)/closeby_multiplier + visionVals2D[4][2]
 
-        state = tf.constant([[self.closest[0], self.closest[1], self.closest[2], self.closest[3], self.closest[4], self.closest[5], self.closest[6], self.closest[7], xpp, xmm, ypp, ymm]])
-        state.trainable = True
+        state = tf.constant([[self.closest[0], self.closest[1], self.closest[2], self.closest[3], self.closest[4], self.closest[5], self.closest[6], self.closest[7], xmm,xpp,ymm,ypp]])
+        #state.trainable = True
 
-        if not ownObject.active:
-            return
+        #if not ownObject.active:
+        #    return
+
+        #if self.starting:
+        #    self.prev_state = tf.identity(state)
 
         with tf.GradientTape() as tape:
             #tape.watch(state)
@@ -373,32 +383,36 @@ class MyDeepQStrategy:
             #loss_value = mean_squared_error_loss(observed_q_value, self.prev_q_value)
             #self.q_network.loss = loss_value
 
-            #if not self.starting:
-            #    grads = tape.gradient(loss_value, self.q_network.trainable_variables)
-            #    self.opt.apply_gradients(zip(grads, self.q_network.trainable_variables))
-            #else:
-            #    self.starting = False
+            if not self.starting:
+                #grads = tape.gradient(loss_value, self.q_network.trainable_variables)
+                #self.opt.apply_gradients(zip(grads, self.q_network.trainable_variables))
+                self.starting = True
+            else:
+                self.starting = False
 
             
-            self.prev_state = tf.identity(state)
+            #self.prev_state = tf.identity(state)
 
             q_values = self.q_network(state)
 
             epsilon = np.random.rand()
             if epsilon <= self.exploration_rate:
-                action = np.random.choice(9)
+                action = np.random.choice(8)
             else:
                 action = np.argmax(q_values)
 
-            self.size = ownObject.size
-            sizeDiff = self.size - self.last_size
-            if sizeDiff > 0:
-                self.sizeGainCtr = 0
-            else:
-                self.sizeGainCtr = self.sizeGainCtr + 1
-            self.last_size = self.size
+            #self.size = ownObject.size
+            #sizeDiff = self.size - self.last_size
+            #if sizeDiff > 0:
+            #    self.sizeGainCtr = 0
+            #else:
+            #    self.sizeGainCtr = self.sizeGainCtr + 1
+            #self.last_size = self.size
 
-            
+            #self.prevPos.append(ownObject.pos)
+            #if len(self.prevPos) > 5:
+            #    self.prevPos.pop(0)
+
             rel = 0
             if action == 1:
                 actstring = "++"
@@ -420,26 +434,27 @@ class MyDeepQStrategy:
                 relX = 0
                 relY = 1
                 rel = 4
+            #elif action == 5:
+            #    actstring = "00"
+            #    relX = 0
+            #    relY = 0
+            #    self.reward = 0
             elif action == 5:
-                actstring = "00"
-                relX = 0
-                relY = 0
-            elif action == 6:
                 actstring = "0-"
                 relX = 0
                 relY = -1
                 rel = 3
-            elif action == 7:
+            elif action == 6:
                 actstring = "-+"
                 relX = -1
                 relY = 1
-                rel = 1
-            elif action == 8:
+                rel = 2
+            elif action == 7:
                 actstring = "-0"
                 relX = -1
                 relY = 0
                 rel = 1
-            elif action == 0:
+            elif action == 8:
                 actstring = "--"
                 relX = -1
                 relY = -1
@@ -449,6 +464,17 @@ class MyDeepQStrategy:
                 relX = -1
                 relY = -1
                 rel = 0
+
+            #self.prev_actions.append(relX)
+            #self.prev_actions.append(relY)
+
+            #if(len(self.prev_actions) > 10):
+            #    self.prev_actions.pop(0)
+            #    self.prev_actions.pop(1)
+
+            #newPos = [ownObject.pos[0] + relX, ownObject.pos[1] + relY]
+
+            
 
             #if sizeDiff > 0:
             #    self.reward = sizeDiff
@@ -460,6 +486,12 @@ class MyDeepQStrategy:
             #    self.reward = 0
 
             self.reward = self.closest[rel]
+            #if self.reward == 0:
+            #    self.reward = 0.1
+            
+            #for pPos in self.prevPos:
+            #    if tuple(pPos) == tuple(newPos) and self.reward == 0:
+            #        self.reward = -0.5
 
             #if self.reward == 0:
             #    if action == 5:
@@ -487,14 +519,15 @@ class MyDeepQStrategy:
             #if self.oldcounter > 2:
             #    self.reward = -1
 
-            q_value = q_values[0,action]
-            loss_value = mean_squared_error_loss(self.reward, q_value)
-            grads = tape.gradient(loss_value, self.q_network.trainable_variables)
-            self.opt.apply_gradients(zip(grads, self.q_network.trainable_variables))
+            if ownObject.active:
+                q_value = q_values[0,action]
+                loss_value = (self.reward - q_value) ** 2
+                grads = tape.gradient(loss_value, self.q_network.trainable_variables)
+                self.opt.apply_gradients(zip(grads, self.q_network.trainable_variables))
 
-            self.reward = [self.reward]
-            self.prev_action = action
-            self.prev_q_value = np.copy(q_values[0, action])
+            #self.reward = [self.reward]
+            #self.prev_q_value = np.copy(q_values[0, action])
+            #self.prev_action = action
 
 
             
