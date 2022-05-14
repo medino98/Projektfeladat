@@ -243,6 +243,8 @@ class MyDeepQStrategy:
         return action
 
     def checkClosest(self, field, value):
+        #if value == 0:
+        #    value = 0.1
         if field["relative_coord"][0] == -1 and field["relative_coord"][1] == -1:
             self.closest[0] = value
         elif field["relative_coord"][0] == -1 and field["relative_coord"][1] == 0:

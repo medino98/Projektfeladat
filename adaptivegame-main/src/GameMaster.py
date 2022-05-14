@@ -7,6 +7,7 @@ from Engine import AdaptIOEngine
 from Server import MultiSocketServer
 from threading import Timer, Thread
 from Gui_Beta import *
+import tensorflow as tf
 
 import matplotlib.pyplot as plt
 
@@ -97,7 +98,8 @@ class GameMaster:
                         for player in self.engine.players:
                             if player.name.find("RemotePlayer") != -1:
                                 player.strategy.reward = 0
-                                if self.gameCntr < 50:
+                                player.strategy.opt = tf.keras.optimizers.Adam(learning_rate=0.1)
+                                if self.gameCntr < 200:
                                     player.strategy.exploration_rate = 1
                                 elif self.gameCntr < 1000:
                                     player.strategy.exploration_rate = 0.1
