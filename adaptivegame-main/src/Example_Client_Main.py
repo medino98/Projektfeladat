@@ -7,9 +7,9 @@ from Client import SocketClient
 import json
 import numpy as np
 import tensorflow as tf
-import tensorflow.keras as keras
-import tensorflow.keras.layers as layers
-import tensorflow.keras.initializers as initializers
+import tensorflow.python.keras as keras
+import tensorflow.python.keras.layers as layers
+import tensorflow.python.keras.initializers as initializers
 
 import matplotlib.pyplot as plt
 

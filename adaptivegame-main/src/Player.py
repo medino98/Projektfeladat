@@ -1,28 +1,23 @@
 import numpy as np
 import json
 import tensorflow as tf
-import tensorflow.keras as keras
-import tensorflow.keras.layers as layers
-import tensorflow.keras.initializers as initializers
+import tensorflow.python.keras as keras
+import tensorflow.python.keras.layers as layers
+import tensorflow.python.keras.initializers as initializers
 
 
 def construct_q_network(state_dim: int, action_dim: int) -> keras.Model:
     inputs = layers.Input(shape=(state_dim,))  # input dimension
-    hidden1 = layers.Dense(
-        24, activation="relu", kernel_initializer=initializers.he_normal()
-    )(inputs)
-    q_values = layers.Dense(
-        action_dim, kernel_initializer=initializers.Identity() , activation="linear",
-    )(hidden1)
-
+    hidden1 = layers.Dense(24, activation="relu", kernel_initializer=initializers.he_normal())(inputs)
+    q_values = layers.Dense(action_dim, kernel_initializer=initializers.Identity() , activation="linear",)(hidden1)
     deep_q_network = keras.Model(inputs=inputs, outputs=[q_values])
 
     return deep_q_network
 
-def mean_squared_error_loss(o_q_value: tf.Tensor, q_value: tf.Tensor) -> tf.Tensor:
-    loss = (o_q_value - q_value) ** 2
+#def mean_squared_error_loss(o_q_value: tf.Tensor, q_value: tf.Tensor) -> tf.Tensor:
+  #  loss = (o_q_value - q_value) ** 2
 
-    return loss
+   # return loss
 
 class RemotePlayerStrategy:
     def __init__(self, **kwargs):
@@ -231,7 +226,7 @@ class MyDeepQStrategy:
 
         
     def save_q_network(self):
-        tf.keras.models.save_model(self.q_network, "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projektfeladat/adaptivegame-main/src/my_model")
+        tf.keras.models.save_model(self.q_network, "C:/Projektfeladat/adaptivegame-main/src/my_model")
 
     def getRandomAction(self):
         actdict = {0: "0", 1: "+", 2: "-"}
@@ -399,7 +394,7 @@ class MyDeepQStrategy:
 
             epsilon = np.random.rand()
             if epsilon <= self.exploration_rate:
-                action = np.random.choice(8)
+                action = np.random.choice(9)
             else:
                 action = np.argmax(q_values)
 

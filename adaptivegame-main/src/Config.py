@@ -9,8 +9,8 @@ LOG = False
 LOG_PATH = './log'
 
 # Engine
-MAPPATH          = "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projektfeladat/adaptivegame-main/src/maps/04_mirror.txt"
-FIELDUPDATE_PATH = "D:/BME/MSc/1. felev/Adaptív rendszerek modellezése/Projektfeladat/adaptivegame-main/src/fieldupdate/03_midlane.txt"
+MAPPATH          = "C:/Projektfeladat/adaptivegame-main/src/maps/04_mirror.txt"
+FIELDUPDATE_PATH = "C:/Projektfeladat/adaptivegame-main/src/fieldupdate/03_midlane.txt"
 STARTING_SIZE    = 5
 MIN_RATIO        = 1.1
 STRATEGY_DICT    = {"RemotePlayer": "mydeepq", "Teszt2": "dummy", "Teszt3": "randombot", "Teszt4": "randombot"}
